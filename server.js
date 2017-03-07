@@ -7,14 +7,23 @@
 
 /* global variables */
 var multipart = require('./multipart');
+var template = require('./template');
+var staticFiles = require('./static');
 var http = require('http');
 var url = require('url');
 var fs = require('fs');
-var port = 3000;
+var port = 4000;
 
 /* load cached files */
 var config = JSON.parse(fs.readFileSync('config.json'));
-var stylesheet = fs.readFileSync('gallery.css');
+var stylesheet = fs.readFileSync('public/gallery.css');
+var script = fs.readFileSync('public/gallery.js');
+
+/* load public directory */
+staticFiles.loadDir('public');
+
+/* load templates */
+template.loadDir('templates');
 
 /** @function getImageNames
  * Retrieves the filenames for all images in the
@@ -50,24 +59,10 @@ function imageNamesToTags(fileNames) {
  * gallery images.
  */
 function buildGallery(imageTags) {
-  var html =  '<!doctype html>';
-      html += '<head>';
-      html +=   '<title>' + config.title + '</title>';
-      html +=   '<link href="gallery.css" rel="stylesheet" type="text/css">'
-      html += '</head>';
-      html += '<body>';
-      html += '  <h1>' + config.title + '</h1>';
-      html += '  <form method="GET" action="">';
-      html += '    <input type="text" name="title">';
-      html += '    <input type="submit" value="Change Gallery Title">';
-      html += '  </form>';
-      html += imageNamesToTags(imageTags).join('');
-      html += ' <form action="" method="POST" enctype="multipart/form-data">';
-      html += '   <input type="file" name="image">';
-      html += '   <input type="submit" value="Upload Image">';
-      html += ' </form>';
-      html += '</body>';
-  return html;
+  return template.render('gallery.html', {
+    title: config.title,
+    imageTags: imageNamesToTags(imageTags).join('')
+  });
 }
 
 /** @function serveGallery
@@ -168,12 +163,13 @@ function handleRequest(req, res) {
         uploadImage(req, res);
       }
       break;
-    case '/gallery.css':
-      res.setHeader('Content-Type', 'text/css');
-      res.end(stylesheet);
-      break;
+
     default:
-      serveImage(req.url, req, res);
+    console.log(req.url);
+      if(staticFiles.isCached('public' + req.url)) {
+        staticFiles.serveFile('public' + req.url, req, res);
+      }
+      else serveImage(req.url, req, res);
   }
 }
 
